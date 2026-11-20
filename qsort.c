@@ -1,26 +1,26 @@
+#include <stdlib.h>
+#include <time.h>
 #include "my_qsort.h"
 
-/*
-  quicksort эрэмбэлэх аргын цааш хуваагдах ёсгүй хэмжээ
-*/
 #ifndef CUTOFF
 #define CUTOFF 10
 #endif
 
-static int init_seed = 0;  // Random seed 1 удаа эхлүүлнэ
+static int init_seed = 0;
 
-/*
-  Оруулан эрэмбэлэх функц.
-  [lo, hi] завсрах тоонуудыг оруулан эрэмбэлэх аргаар эрэмбэлнэ.
-*/
 static void insertion_sort(int a[], int lo, int hi)
 {
-        /* Оруулан эрэмбэлэх аргыг хэрэгжүүл */
+        for (int i = lo + 1; i <= hi; i++) {
+                int key = a[i];
+                int j = i - 1;
+                while (j >= lo && a[j] > key) {
+                        a[j + 1] = a[j];
+                        j--;
+                }
+                a[j + 1] = key;
+        }
 }
 
-/*
-  Хоёр утгыг хооронд солих функц
-*/
 static void swap(int *a, int *b)
 {
         int tmp = *a;
@@ -28,57 +28,118 @@ static void swap(int *a, int *b)
         *b = tmp;
 }
 
-/*
-  [lo, hi] завсрыг санамсаргүйгээр холих функц.
-*/
 static void random_shuffle(int a[], int lo, int hi)
 {
+        if (lo >= hi) {
+                return;
+        }
         if (init_seed == 0) {
-                srand(time(NULL));
+                srand((unsigned int)time(NULL));
                 init_seed = 1;
         }
-        int i, j;
-        for (i = lo; i <= hi; i++) {
-                j = rand() % (hi - lo) + lo;
+        int len = hi - lo + 1;
+        for (int i = lo; i <= hi; i++) {
+                int j = lo + rand() % len;
                 swap(&a[i], &a[j]);
         }
 }
 
-/*
-  1-pivot хурдан эрэмбэлэх функц.
-*/
-static void _single_pivot_qsort(int a[], int lo, int hi)
+static int partition(int a[], int lo, int hi)
 {
-        /* Энд quicksort хэрэгжүүл */
+        int pivot = a[lo];
+        int i = lo;
+        int j = hi + 1;
+
+        while (1) {
+                while (a[++i] < pivot) {
+                        if (i == hi) break;
+                }
+                while (a[--j] > pivot) {
+                        if (j == lo) break;
+                }
+                if (i >= j) break;
+                swap(&a[i], &a[j]);
+        }
+        swap(&a[lo], &a[j]);
+        return j;
 }
 
-/*
-  wrapper function for _single_pivot_qsort
-  _single_pivot_qsort-ыг дуудахад ашиглах функц
- */
+static void _single_pivot_qsort(int a[], int lo, int hi)
+{
+        if (lo >= hi) {
+                return;
+        }
+        if (hi - lo + 1 <= CUTOFF) {
+                insertion_sort(a, lo, hi);
+                return;
+        }
+        int p = partition(a, lo, hi);
+        _single_pivot_qsort(a, lo, p - 1);
+        _single_pivot_qsort(a, p + 1, hi);
+}
+
 void single_pivot_qsort(int a[], int lo, int hi)
 {
         random_shuffle(a, lo, hi);
         _single_pivot_qsort(a, lo, hi);
 }
 
-/*
-  Dual-pivot хурдан эрэмбэлэх функц
-*/
 static void _dual_pivot_qsort(int a[], int lo, int hi)
 {
-        /*
-          Энд dual-pivot quicksort хэрэгжүүл
-        */
-	
+        if (lo >= hi) {
+                return;
+        }
+        if (hi - lo + 1 <= CUTOFF) {
+                insertion_sort(a, lo, hi);
+                return;
+        }
+
+        if (a[lo] > a[hi]) {
+                swap(&a[lo], &a[hi]);
+        }
+
+        int p = a[lo];
+        int q = a[hi];
+
+        int lt = lo + 1;
+        int gt = hi - 1;
+        int k = lt;
+
+        while (k <= gt) {
+                if (a[k] < p) {
+                        swap(&a[k], &a[lt]);
+                        lt++;
+                        k++;
+                } else if (a[k] > q) {
+                        while (k < gt && a[gt] > q) {
+                                gt--;
+                        }
+                        swap(&a[k], &a[gt]);
+                        gt--;
+                        if (a[k] < p) {
+                                swap(&a[k], &a[lt]);
+                                lt++;
+                        }
+                        k++;
+                } else {
+                        k++;
+                }
+        }
+
+        lt--;
+        gt++;
+        swap(&a[lo], &a[lt]);
+        swap(&a[hi], &a[gt]);
+
+        _dual_pivot_qsort(a, lo, lt - 1);
+        if (p < q) {
+                _dual_pivot_qsort(a, lt + 1, gt - 1);
+        }
+        _dual_pivot_qsort(a, gt + 1, hi);
 }
-/*
-  wrapper function for _dual_pivot_qsort
-  _dual_pivot_qsort-ыг дуудахад ашиглах функц
-*/
+
 void dual_pivot_qsort(int a[], int lo, int hi)
 {
         random_shuffle(a, lo, hi);
         _dual_pivot_qsort(a, lo, hi);
 }
-
